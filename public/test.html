@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Podcast RSS API 测试工具</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #f5f5f5;
+        color: #111827;
+        min-height: 100vh;
+        margin: 0;
+        padding: 32px 16px 48px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+      }
+      .panel {
+        width: min(840px, 100%);
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 32px;
+        box-shadow: 0 22px 60px rgba(15, 23, 42, 0.12);
+        border: 1px solid rgba(15, 23, 42, 0.08);
+      }
+      .panel-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 24px;
+      }
+      .panel-head h1 {
+        margin: 4px 0 8px;
+        font-size: 1.9rem;
+      }
+      .eyebrow {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        margin: 0;
+      }
+      .notice {
+        font-size: 0.9rem;
+        color: #6b7280;
+        margin: 0 0 18px;
+      }
+      .ghost-link {
+        text-decoration: none;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #2563eb;
+        border: 1px solid rgba(37, 99, 235, 0.3);
+        padding: 8px 18px 8px 14px;
+        border-radius: 999px;
+        align-self: flex-start;
+        transition: background 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .ghost-link::before {
+        content: "←";
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: rgba(37, 99, 235, 0.12);
+        color: #1d4ed8;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+      }
+      .ghost-link:hover {
+        background: rgba(37, 99, 235, 0.08);
+      }
+      form {
+        margin-bottom: 32px;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 0.95rem;
+        color: #475467;
+      }
+      input,
+      select {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid rgba(15, 23, 42, 0.15);
+        padding: 12px 14px;
+        margin-bottom: 16px;
+        background: #fff;
+        color: #0f172a;
+        font-size: 1rem;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+      input:focus,
+      select:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+      }
+      button {
+        background: linear-gradient(120deg, #2563eb, #7c3aed);
+        color: #fff;
+        border: none;
+        padding: 12px 32px;
+        border-radius: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        font-size: 1rem;
+        box-shadow: 0 15px 35px rgba(37, 99, 235, 0.3);
+        transition: opacity 0.2s, transform 0.2s;
+      }
+      button:disabled {
+        opacity: 0.7;
+        cursor: not-allowed;
+        box-shadow: none;
+      }
+      button:not(:disabled):hover {
+        transform: translateY(-1px);
+      }
+      pre {
+        background: #0f172a;
+        color: #f1f5f9;
+        border-radius: 14px;
+        padding: 20px;
+        overflow-x: auto;
+        border: 1px solid rgba(15, 23, 42, 0.25);
+        font-size: 0.92rem;
+        margin: 0;
+      }
+      .select-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .select-wrapper select {
+        margin-bottom: 0;
+      }
+      .method-tag {
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: #e0e7ff;
+        color: #312e81;
+        font-size: 0.85rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .field-hint {
+        font-size: 0.85rem;
+        color: #94a3b8;
+        margin: -10px 0 16px;
+      }
+      .result-block {
+        border-top: 1px solid rgba(15, 23, 42, 0.08);
+        padding-top: 24px;
+      }
+      .result-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 12px;
+      }
+      .result-head strong {
+        font-size: 1rem;
+        color: #0f172a;
+      }
+      .meta {
+        font-size: 0.85rem;
+        color: #6b7280;
+      }
+      .storage-hint {
+        color: #10b981;
+        font-weight: 600;
+      }
+      @media (max-width: 620px) {
+        .panel {
+          padding: 24px 18px;
+        }
+        .panel-head {
+          flex-direction: column;
+        }
+        .select-wrapper {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .method-tag {
+          align-self: flex-start;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">工具</p>
+          <h1>Podcast RSS API 测试台</h1>
+          <p class="notice">
+            在浏览器中直接验证接口行为，API Key
+            <span class="storage-hint">仅保存在本地</span>，方便下次打开即用。
+          </p>
+        </div>
+        <a class="ghost-link" href="/">返回首页</a>
+      </div>
+      <form id="test-form">
+        <label for="endpoint">选择接口</label>
+        <div class="select-wrapper">
+          <select id="endpoint"></select>
+          <span id="endpoint-method" class="method-tag">GET</span>
+        </div>
+        <p id="endpoint-info" class="notice"></p>
+        <label for="api-key">API Key</label>
+        <input id="api-key" type="text" placeholder="请输入 API Key" required />
+        <p class="field-hint">填写一次后自动保存，刷新页面依然有效。</p>
+        <div id="param-fields"></div>
+        <button id="submit-btn" type="submit">发送请求</button>
+      </form>
+      <section class="result-block">
+        <div class="result-head">
+          <strong>响应</strong>
+          <span id="response-meta" class="meta">等待请求…</span>
+        </div>
+        <pre id="output">等待请求…</pre>
+      </section>
+    </div>
+    <script>
+      const STORAGE_KEY = "podcast-rss-api-key";
+      const API_BASE = window.location.origin.replace(/\/$/, "");
+      const endpoints = [
+        {
+          value: "/api/podcast",
+          label: "频道概览 /api/podcast",
+          method: "GET",
+          description: "解析 RSS 频道的名称、作者、封面、简介等基础信息。",
+          params: [
+            {
+              name: "url",
+              label: "Podcast RSS URL",
+              type: "url",
+              placeholder: "https://example.com/feed.xml",
+              required: true,
+            },
+            {
+              name: "refresh",
+              label: "强制刷新",
+              type: "text",
+              placeholder: "1",
+              description: "填写 1 可跳过缓存（可选）。",
+            },
+          ],
+        },
+        {
+          value: "/api/podcast/episodes",
+          label: "分页分集列表 /api/podcast/episodes",
+          method: "GET",
+          description: "返回频道信息并追加分页后的分集数据，每页 10 条。",
+          params: [
+            {
+              name: "url",
+              label: "Podcast RSS URL",
+              type: "url",
+              placeholder: "https://example.com/feed.xml",
+              required: true,
+            },
+            {
+              name: "page",
+              label: "页码",
+              type: "number",
+              min: 1,
+              placeholder: "1",
+              defaultValue: 1,
+              description: "默认为第 1 页，可填写任意正整数。",
+            },
+            {
+              name: "refresh",
+              label: "强制刷新",
+              type: "text",
+              placeholder: "1",
+              description: "填写 1 可跳过缓存（可选）。",
+            },
+          ],
+        },
+      ];
+
+      const form = document.getElementById("test-form");
+      const endpointEl = document.getElementById("endpoint");
+      const endpointInfoEl = document.getElementById("endpoint-info");
+      const endpointMethodEl = document.getElementById("endpoint-method");
+      const apiKeyEl = document.getElementById("api-key");
+      const paramFieldsEl = document.getElementById("param-fields");
+      const outputEl = document.getElementById("output");
+      const responseMetaEl = document.getElementById("response-meta");
+      const submitBtn = document.getElementById("submit-btn");
+      const formState = {};
+
+      const savedKey = localStorage.getItem(STORAGE_KEY);
+      if (savedKey) {
+        apiKeyEl.value = savedKey;
+      }
+
+      const getSelectedEndpoint = () =>
+        endpoints.find((item) => item.value === endpointEl.value) || endpoints[0];
+
+      const renderEndpointOptions = () => {
+        endpoints.forEach((endpoint, index) => {
+          const option = document.createElement("option");
+          option.value = endpoint.value;
+          option.textContent = endpoint.label;
+          if (index === 0) {
+            option.selected = true;
+          }
+          endpointEl.appendChild(option);
+        });
+      };
+
+      const storeActiveParams = () => {
+        const active = getSelectedEndpoint();
+        if (!active) return;
+        const values = {};
+        active.params.forEach((param) => {
+          const input = document.getElementById(`param-${param.name}`);
+          if (input) {
+            values[param.name] = input.value;
+          }
+        });
+        formState[active.value] = values;
+      };
+
+      const renderParams = (endpoint) => {
+        paramFieldsEl.innerHTML = "";
+        const savedParams = formState[endpoint.value] || {};
+
+        endpoint.params.forEach((param) => {
+          const wrapper = document.createElement("div");
+          const label = document.createElement("label");
+          const input = document.createElement("input");
+
+          label.htmlFor = `param-${param.name}`;
+          label.textContent = `${param.label}${param.required ? "" : "（可选）"}`;
+
+          input.id = `param-${param.name}`;
+          input.name = param.name;
+          input.type = param.type || "text";
+          input.required = Boolean(param.required);
+          input.placeholder = param.placeholder || "";
+          input.value =
+            savedParams[param.name] ??
+            (param.defaultValue !== undefined ? String(param.defaultValue) : "");
+          if (param.min !== undefined) {
+            input.min = String(param.min);
+          }
+
+          wrapper.appendChild(label);
+          wrapper.appendChild(input);
+
+          if (param.description) {
+            const hint = document.createElement("p");
+            hint.className = "field-hint";
+            hint.textContent = param.description;
+            wrapper.appendChild(hint);
+          }
+
+          paramFieldsEl.appendChild(wrapper);
+        });
+      };
+
+      const renderEndpointDetails = () => {
+        const active = getSelectedEndpoint();
+        if (!active) return;
+        endpointInfoEl.textContent = active.description;
+        endpointMethodEl.textContent = active.method;
+        renderParams(active);
+      };
+
+      const buildPayload = (endpoint) => {
+        const payload = {};
+        endpoint.params.forEach((param) => {
+          const input = document.getElementById(`param-${param.name}`);
+          if (!input) return;
+          let value = input.value.trim();
+          if (!value && !param.required) {
+            return;
+          }
+          if (param.type === "number") {
+            value = value === "" ? "" : Number(value);
+            if (value === "" || Number.isNaN(value)) {
+              return;
+            }
+          }
+          payload[param.name] = value;
+        });
+        return payload;
+      };
+
+      renderEndpointOptions();
+      renderEndpointDetails();
+
+      endpointEl.addEventListener("change", () => {
+        storeActiveParams();
+        renderEndpointDetails();
+      });
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const endpoint = getSelectedEndpoint();
+        const apiKey = apiKeyEl.value.trim();
+        if (!endpoint || !apiKey) {
+          responseMetaEl.textContent = "请填写必要信息";
+          return;
+        }
+
+        localStorage.setItem(STORAGE_KEY, apiKey);
+        responseMetaEl.textContent = "请求发送中…";
+        outputEl.textContent = "加载中…";
+        submitBtn.disabled = true;
+
+        const payload = buildPayload(endpoint);
+        const params = new URLSearchParams();
+        Object.entries(payload).forEach(([key, value]) => {
+          if (value === undefined || value === null || value === "") return;
+          params.append(key, String(value));
+        });
+        const query = params.toString();
+        const requestUrl = `${API_BASE}${endpoint.value}${query ? `?${query}` : ""}`;
+
+        try {
+          const response = await fetch(requestUrl, {
+            method: endpoint.method,
+            headers: {
+              "x-api-key": apiKey,
+            },
+          });
+          const contentType = response.headers.get("content-type") || "";
+          const isJson = contentType.includes("application/json");
+          const data = isJson ? await response.json() : await response.text();
+          const finalText = isJson ? JSON.stringify(data, null, 2) : String(data);
+          responseMetaEl.textContent = `HTTP ${response.status}`;
+          outputEl.textContent = finalText || "(空响应)";
+        } catch (error) {
+          responseMetaEl.textContent = "请求失败";
+          outputEl.textContent = `错误：${error.message}`;
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

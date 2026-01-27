@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Podcast RSS API</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0 auto;
+        max-width: 960px;
+        padding: 40px 20px 60px;
+        line-height: 1.6;
+      }
+      code {
+        background: rgba(0, 0, 0, 0.06);
+        padding: 2px 4px;
+        border-radius: 4px;
+        font-size: 0.95em;
+      }
+      pre {
+        background: #111;
+        color: #f8f8f2;
+        padding: 16px;
+        border-radius: 8px;
+        overflow-x: auto;
+        font-size: 0.9em;
+      }
+      h1 {
+        margin-bottom: 0.4em;
+      }
+      section {
+        margin-bottom: 32px;
+      }
+      ul {
+        padding-left: 20px;
+      }
+      .tag {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #eee;
+        color: #333;
+        font-size: 0.85em;
+        margin-right: 8px;
+      }
+      .endpoint {
+        margin-bottom: 16px;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: #2563eb;
+        color: #fff;
+        padding: 10px 22px;
+        border-radius: 999px;
+        font-weight: 600;
+        text-decoration: none;
+        margin-top: 12px;
+        transition: background 0.2s, transform 0.2s;
+      }
+      .button:hover {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+      }
+      footer {
+        margin-top: 40px;
+        font-size: 0.85em;
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Podcast RSS API</h1>
+      <p>提供播客频道概览与分集列表解析服务。所有请求必须携带 <code>X-API-Key</code> 或 <code>?api_key=</code> 参数。</p>
+    </header>
+
+    <section>
+      <h2>快速体验</h2>
+      <p>想要直接验证接口？使用浏览器内置的测试工具，支持下拉选择请求结构、填写并记住 API Key。</p>
+      <a class="button" href="/test.html">打开 API 测试工具</a>
+    </section>
+
+    <section>
+      <h2>鉴权</h2>
+      <ul>
+        <li>请求头：<code>X-API-Key: &lt;你的密钥&gt;</code></li>
+        <li>或查询参数：<code>?api_key=&lt;你的密钥&gt;</code></li>
+        <li>密钥由部署环境中的 <code>API_KEY</code> 控制，未携带或错误会返回 <code>401 Unauthorized</code>。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>接口</h2>
+      <div class="endpoint">
+        <div class="tag">GET</div>
+        <code>/api/podcast</code>
+        <p>解析 RSS 频道基本信息（名称、作者、官网、简介、封面）。查询参数：</p>
+        <pre>/api/podcast?url=https://example.com/feed.xml</pre>
+        <p>可选参数：<code>refresh=1</code> 强制刷新（不走缓存）。</p>
+      </div>
+      <div class="endpoint">
+        <div class="tag">GET</div>
+        <code>/api/podcast/episodes</code>
+        <p>返回频道信息＋分页后的分集列表（每页 10 条）。查询参数：</p>
+        <pre>/api/podcast/episodes?url=https://example.com/feed.xml&amp;page=1</pre>
+        <p>可选参数：<code>refresh=1</code> 强制刷新（不走缓存）。</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>缓存策略</h2>
+      <ul>
+        <li>频道信息：获取到数据时缓存 5 小时；无数据时不缓存。</li>
+        <li>分集列表：当前页有数据时缓存 36 小时；无数据时不缓存。</li>
+        <li>传入 <code>refresh=1</code> 可强制刷新并跳过缓存。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>响应示例</h2>
+      <pre>{
+  "podcast": {
+    "name": "示例播客",
+    "author": "播客作者",
+    "rss": "https://example.com/feed.xml",
+    "image": "https://example.com/cover.jpg",
+    "website": "https://example.com",
+    "description": "&lt;p&gt;频道简介...&lt;/p&gt;"
+  },
+  "pagination": {
+    "total": 42,
+    "perPage": 10,
+    "currentPage": 1,
+    "totalPages": 5
+  },
+  "episodes": [
+    {
+      "title": "第 1 集",
+      "author": "主持人",
+      "publishedAt": 1736856000000,
+      "duration": "01:02:03",
+      "audio": "https://cdn.example.com/audio.mp3",
+      "image": "https://example.com/episode.jpg",
+      "description": "&lt;p&gt;完整 show notes&lt;/p&gt;",
+      "intro": "纯文本简介",
+      "url": "https://example.com/episode",
+      "link": "https://example.com/episode"
+    }
+  ]
+}</pre>
+      <p><strong>说明：</strong>分集的 <code>publishedAt</code> 为 Unix 毫秒时间戳，客户端可按东八区等需要自己格式化。</p>
+    </section>
+
+    <footer></footer>
+  </body>
+</html>
