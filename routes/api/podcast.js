@@ -15,6 +15,14 @@ const MAX_REDIRECTS = 3;
 const PER_PAGE = 10;
 const PODCAST_CACHE_SECONDS = 60 * 60 * 5;
 const EPISODES_CACHE_SECONDS = 60 * 60 * 36;
+const REQUEST_TIMEOUT_MS = 10000;
+const MAX_RSS_BYTES = 5 * 1024 * 1024;
+const DEBUG = process.env.DEBUG_RSS === "1";
+
+const logDebug = (...args) => {
+  if (!DEBUG) return;
+  console.log("[rss]", ...args);
+};
 
 const ensureArray = (value) => {
   if (!value) return [];
@@ -213,23 +221,31 @@ const ensurePublicUrl = (parsedUrl) => {
   }
 };
 
-const safeLookup = (hostname, options, callback) => {
+const resolvePublicAddress = async (hostname) => {
+  const addresses = await dns.lookup(hostname, { all: true, verbatim: true });
+  if (!addresses || addresses.length === 0) {
+    throw new Error("DNS 解析失败");
+  }
+  const publicAddress = addresses.find((record) => !isPrivateIp(record.address));
+  if (!publicAddress) {
+    throw new Error("禁止访问内网地址");
+  }
+  return publicAddress;
+};
+
+const createStaticLookup = (address, family) => (hostname, options, callback) => {
   if (typeof options === "function") {
     callback = options;
     options = {};
   }
 
-  dns.lookup(hostname, { all: false, verbatim: true }, (error, address, family) => {
-    if (error) {
-      callback(error);
-      return;
-    }
-    if (isPrivateIp(address)) {
-      callback(new Error("禁止访问内网地址"));
-      return;
-    }
-    callback(null, address, family);
-  });
+  const wantsAll = Boolean(options?.all);
+  if (wantsAll) {
+    callback(null, [{ address, family }]);
+    return;
+  }
+
+  callback(null, address, family);
 };
 
 const fetchRss = async (targetUrl, redirectCount = 0) => {
@@ -243,7 +259,18 @@ const fetchRss = async (targetUrl, redirectCount = 0) => {
   ensurePublicUrl(parsedUrl);
 
   const httpClient = parsedUrl.protocol === "https:" ? https : http;
+  const hostname = parsedUrl.hostname.toLowerCase();
+  let lookup;
+
+  if (!net.isIP(hostname)) {
+    const resolved = await resolvePublicAddress(hostname);
+    logDebug("lookup ok", { hostname, address: resolved.address });
+    const family = net.isIP(resolved.address);
+    lookup = createStaticLookup(resolved.address, family);
+  }
   return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    logDebug("fetch start", parsedUrl.href);
     const request = httpClient.get(
       parsedUrl,
       {
@@ -252,10 +279,16 @@ const fetchRss = async (targetUrl, redirectCount = 0) => {
           Accept: "application/rss+xml, application/xml;q=0.9, */*;q=0.8",
           "Accept-Encoding": "gzip, deflate, br",
         },
-        lookup: safeLookup,
+        ...(lookup ? { lookup } : {}),
       },
       (response) => {
         const { statusCode, headers } = response;
+        logDebug("response", {
+          url: parsedUrl.href,
+          statusCode,
+          contentType: headers["content-type"],
+          contentEncoding: headers["content-encoding"],
+        });
 
         if (statusCode >= 300 && statusCode < 400 && headers.location) {
           response.resume();
@@ -277,16 +310,31 @@ const fetchRss = async (targetUrl, redirectCount = 0) => {
         }
 
         const chunks = [];
-        response.on("data", (chunk) => chunks.push(chunk));
-        response.on("end", () => {
-          const buffer = Buffer.concat(chunks);
-          const encoding = headers["content-encoding"];
+        let totalBytes = 0;
+        response.on("data", (chunk) => {
+          totalBytes += chunk.length;
+          if (totalBytes > MAX_RSS_BYTES) {
+            response.destroy();
+            reject(new Error("RSS 内容过大"));
+            return;
+          }
+          chunks.push(chunk);
+        });
+          response.on("end", () => {
+            if (totalBytes > MAX_RSS_BYTES) return;
+            const buffer = Buffer.concat(chunks);
+            const encoding = headers["content-encoding"];
 
           const finish = (err, decoded) => {
             if (err) {
               reject(new Error("解压 RSS 内容失败"));
               return;
             }
+            logDebug("fetch success", {
+              url: parsedUrl.href,
+              bytes: totalBytes,
+              ms: Date.now() - startedAt,
+            });
             resolve(decoded.toString("utf8"));
           };
 
@@ -303,7 +351,20 @@ const fetchRss = async (targetUrl, redirectCount = 0) => {
       },
     );
 
+    request.setTimeout(REQUEST_TIMEOUT_MS, () => {
+      logDebug("timeout", {
+        url: parsedUrl.href,
+        ms: Date.now() - startedAt,
+      });
+      request.destroy(new Error("请求 RSS 超时"));
+    });
+
     request.on("error", (error) => {
+      logDebug("error", {
+        url: parsedUrl.href,
+        message: error?.message,
+        ms: Date.now() - startedAt,
+      });
       if (error?.message) {
         reject(new Error(error.message));
         return;
