@@ -107,8 +107,8 @@
       <div class="endpoint">
         <div class="tag">GET</div>
         <code>/api/podcast/episodes</code>
-        <p>返回频道信息＋分页后的分集列表（每页 10 条）。查询参数：</p>
-        <pre>/api/podcast/episodes?url=https://example.com/feed.xml&amp;page=1</pre>
+        <p>返回频道信息＋游标分页后的分集列表。查询参数：</p>
+        <pre>/api/podcast/episodes?url=https://example.com/feed.xml&amp;cursor=0&amp;limit=10</pre>
         <p>可选参数：<code>refresh=1</code> 强制刷新（不走缓存）。</p>
       </div>
     </section>
@@ -134,10 +134,10 @@
     "description": "&lt;p&gt;频道简介...&lt;/p&gt;"
   },
   "pagination": {
-    "total": 42,
-    "perPage": 10,
-    "currentPage": 1,
-    "totalPages": 5
+    "cursor": 0,
+    "limit": 10,
+    "nextCursor": 10,
+    "hasMore": true
   },
   "episodes": [
     {

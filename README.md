@@ -24,11 +24,11 @@ A podcast RSS parsing service that provides channel overview and episode list AP
     }
   }
   ```
-- `GET /api/podcast/episodes?url=<rss_url>&page=1`
-  - Return channel info with paginated episode list (10 per page)
+- `GET /api/podcast/episodes?url=<rss_url>&cursor=0&limit=10`
+  - Return channel info with cursor-based episode list
   - Cache for 36 hours (no cache if empty page)
   - Optional: `refresh=1` to bypass cache
-- Response fields: `podcast`, `pagination` (`total`, `perPage`, `currentPage`, `totalPages`), `episodes` (`title`, `author`, `publishedAt`, `duration`, `audio`, `image`, `description`, `intro`, `url`, `link`)
+- Response fields: `podcast`, `pagination` (`cursor`, `limit`, `nextCursor`, `hasMore`), `episodes` (`title`, `author`, `publishedAt`, `duration`, `audio`, `image`, `description`, `intro`, `url`, `link`)
 - Example:
   ```json
   {
@@ -41,10 +41,10 @@ A podcast RSS parsing service that provides channel overview and episode list AP
       "description": "<p>Channel description...</p>"
     },
     "pagination": {
-      "total": 42,
-      "perPage": 10,
-      "currentPage": 1,
-      "totalPages": 5
+      "cursor": 0,
+      "limit": 10,
+      "nextCursor": 10,
+      "hasMore": true
     },
     "episodes": [
       {

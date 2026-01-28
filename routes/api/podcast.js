@@ -13,6 +13,7 @@ const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: "@_
 
 const MAX_REDIRECTS = 3;
 const PER_PAGE = 10;
+const MAX_LIMIT = 50;
 const PODCAST_CACHE_SECONDS = 60 * 60 * 5;
 const EPISODES_CACHE_SECONDS = 60 * 60 * 36;
 const REQUEST_TIMEOUT_MS = 10000;
@@ -526,7 +527,8 @@ router.get("/", async (req, res) => {
 
 router.get("/episodes", async (req, res) => {
   const url = getQueryParam(req.query?.url);
-  const page = getQueryParam(req.query?.page);
+  const cursor = getQueryParam(req.query?.cursor);
+  const limit = getQueryParam(req.query?.limit);
   const refresh = getQueryParam(req.query?.refresh);
 
   if (!url) {
@@ -534,16 +536,22 @@ router.get("/episodes", async (req, res) => {
     return;
   }
 
-  const parsedPage = Number.parseInt(page ?? "1", 10);
-  const currentPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+  const parsedCursor = Number.parseInt(cursor ?? "0", 10);
+  const parsedLimit = Number.parseInt(limit ?? String(PER_PAGE), 10);
+  const safeCursor = Number.isNaN(parsedCursor) || parsedCursor < 0 ? 0 : parsedCursor;
+  const safeLimit =
+    Number.isNaN(parsedLimit) || parsedLimit < 1
+      ? PER_PAGE
+      : Math.min(parsedLimit, MAX_LIMIT);
   const bypassCache = isRefreshRequested(refresh);
-  const start = (currentPage - 1) * PER_PAGE;
+  const start = safeCursor;
 
   try {
     const parsed = await parseRssFeed(url);
     const podcast = extractPodcastInfo(parsed, url);
-    const { total, episodes } = extractEpisodesPage(parsed, start, PER_PAGE);
-    const totalPages = total === 0 ? 1 : Math.ceil(total / PER_PAGE);
+    const { total, episodes } = extractEpisodesPage(parsed, start, safeLimit);
+    const hasMore = start + episodes.length < total;
+    const nextCursor = hasMore ? start + episodes.length : null;
     const paginated = episodes;
 
     if (bypassCache || paginated.length === 0) {
@@ -555,10 +563,10 @@ router.get("/episodes", async (req, res) => {
     res.json({
       podcast,
       pagination: {
-        total,
-        perPage: PER_PAGE,
-        currentPage,
-        totalPages,
+        cursor: start,
+        limit: safeLimit,
+        nextCursor,
+        hasMore,
       },
       episodes: paginated,
     });

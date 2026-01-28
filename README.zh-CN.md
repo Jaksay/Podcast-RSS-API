@@ -24,11 +24,11 @@
     }
   }
   ```
-- `GET /api/podcast/episodes?url=<rss_url>&page=1`
-  - 返回频道信息与分页分集列表（每页 10 条）
+- `GET /api/podcast/episodes?url=<rss_url>&cursor=0&limit=10`
+  - 返回频道信息与游标分页分集列表
   - 缓存 36 小时（当前页无数据不缓存）
   - 可选参数：`refresh=1` 强制刷新
-- 返回字段：`podcast`、`pagination`（`total`、`perPage`、`currentPage`、`totalPages`）、`episodes`（`title`、`author`、`publishedAt`、`duration`、`audio`、`image`、`description`、`intro`、`url`、`link`）
+- 返回字段：`podcast`、`pagination`（`cursor`、`limit`、`nextCursor`、`hasMore`）、`episodes`（`title`、`author`、`publishedAt`、`duration`、`audio`、`image`、`description`、`intro`、`url`、`link`）
 - 示例响应：
   ```json
   {
@@ -41,10 +41,10 @@
       "description": "<p>频道简介...</p>"
     },
     "pagination": {
-      "total": 42,
-      "perPage": 10,
-      "currentPage": 1,
-      "totalPages": 5
+      "cursor": 0,
+      "limit": 10,
+      "nextCursor": 10,
+      "hasMore": true
     },
     "episodes": [
       {

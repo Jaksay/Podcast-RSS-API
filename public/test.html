@@ -264,7 +264,7 @@
           value: "/api/podcast/episodes",
           label: "分页分集列表 /api/podcast/episodes",
           method: "GET",
-          description: "返回频道信息并追加分页后的分集数据，每页 10 条。",
+          description: "返回频道信息并追加游标分页后的分集数据。",
           params: [
             {
               name: "url",
@@ -274,13 +274,22 @@
               required: true,
             },
             {
-              name: "page",
-              label: "页码",
+              name: "cursor",
+              label: "游标",
+              type: "number",
+              min: 0,
+              placeholder: "0",
+              defaultValue: 0,
+              description: "从第几条开始（0 表示第一条）。",
+            },
+            {
+              name: "limit",
+              label: "每页数量",
               type: "number",
               min: 1,
-              placeholder: "1",
-              defaultValue: 1,
-              description: "默认为第 1 页，可填写任意正整数。",
+              placeholder: "10",
+              defaultValue: 10,
+              description: "每次返回的分集数量（最大 50）。",
             },
             {
               name: "refresh",
