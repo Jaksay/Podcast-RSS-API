@@ -146,7 +146,20 @@ const toRichHtml = (value) => {
     return "";
   }
 
-  return sanitizeHtml(decoded, sanitizeOptions).trim();
+  return cleanEmptyHtml(sanitizeHtml(decoded, sanitizeOptions)).trim();
+};
+
+const cleanEmptyHtml = (html) => {
+  if (!html) return "";
+  let output = html;
+  const emptyTagPattern =
+    /<(span|p|div|section|article|strong|b|em|i|u|blockquote|code|pre|figure|figcaption)\b[^>]*>(?:\s|&nbsp;|<br\s*\/?>)*<\/\1>/gi;
+  let previous;
+  do {
+    previous = output;
+    output = output.replace(emptyTagPattern, "");
+  } while (output !== previous);
+  return output.replace(/(?:<br\s*\/?>\s*){2,}/gi, "<br />").trim();
 };
 
 const toLink = (value) => {
