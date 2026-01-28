@@ -10,7 +10,7 @@
 
 - `GET /api/podcast?url=<rss_url>`
   - 解析频道基础信息
-  - 缓存 5 小时（无数据不缓存），`refresh=1` 跳过缓存
+  - 缓存 48 小时（无数据不缓存），`refresh=1` 跳过缓存
   - 说明：缓存通过 `Cache-Control` 响应头实现，是否生效取决于部署环境是否有缓存层
 - 返回字段：`podcast`（`name`、`author`、`rss`、`image`、`website`、`description`）
 - 示例响应：

@@ -10,7 +10,7 @@ A podcast RSS parsing service that provides channel overview and episode list AP
 
 - `GET /api/podcast?url=<rss_url>`
   - Parse podcast channel metadata
-  - Cache for 5 hours (no cache if empty), `refresh=1` to bypass cache
+  - Cache for 48 hours (no cache if empty), `refresh=1` to bypass cache
   - Note: caching relies on `Cache-Control` headers and depends on your deployment cache layer
 - Response fields: `podcast` (`name`, `author`, `rss`, `image`, `website`, `description`)
 - Example:
