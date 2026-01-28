@@ -1,5 +1,7 @@
 # PodRSS_API
 
+[![Docker Image](https://img.shields.io/docker/v/jaksay/podcast-rss-api?sort=semver)](https://hub.docker.com/r/jaksay/podcast-rss-api)
+
 English | [中文](README.zh-CN.md)
 
 A podcast RSS parsing service that provides channel overview and episode list APIs, with a simple web test page.

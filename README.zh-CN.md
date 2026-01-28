@@ -1,5 +1,7 @@
 # PodRSS_API
 
+[![Docker 镜像](https://img.shields.io/docker/v/jaksay/podcast-rss-api?sort=semver)](https://hub.docker.com/r/jaksay/podcast-rss-api)
+
 [English](README.md) | 中文
 
 一个播客 RSS 解析服务，提供频道概览与分集列表接口，并内置简单的网页测试工具。
