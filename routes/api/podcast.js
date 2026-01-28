@@ -430,7 +430,7 @@ const hasPodcastInfo = (podcast) =>
         podcast.description),
   );
 
-const extractEpisodes = (rssData = {}) => {
+const extractEpisodesPage = (rssData = {}, start = 0, limit = PER_PAGE) => {
   const channel = getChannelInfo(rssData);
   const items = ensureArray(channel?.item);
 
@@ -454,7 +454,9 @@ const extractEpisodes = (rssData = {}) => {
     return enclosure;
   };
 
-  return items.map((item, index) => {
+  const pageItems = items.slice(start, start + limit);
+
+  const episodes = pageItems.map((item, index) => {
     const enclosure = toEnclosure(item?.enclosure);
     const rawDescription = item?.["content:encoded"] || item?.description || "";
     const descriptionHtml = toRichHtml(rawDescription);
@@ -476,8 +478,9 @@ const extractEpisodes = (rssData = {}) => {
       toLink(enclosure?.url) ||
       "";
 
+    const episodeIndex = start + index;
     return {
-      title: item?.title || `Episode ${index + 1}`,
+      title: item?.title || `Episode ${episodeIndex + 1}`,
       author,
       publishedAt: parseTimestamp(item?.pubDate || item?.["dc:date"] || ""),
       duration: item?.["itunes:duration"] || item?.duration || "",
@@ -489,6 +492,8 @@ const extractEpisodes = (rssData = {}) => {
       link: episodeLink,
     };
   });
+
+  return { total: items.length, episodes };
 };
 
 router.get("/", async (req, res) => {
@@ -532,16 +537,14 @@ router.get("/episodes", async (req, res) => {
   const parsedPage = Number.parseInt(page ?? "1", 10);
   const currentPage = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
   const bypassCache = isRefreshRequested(refresh);
+  const start = (currentPage - 1) * PER_PAGE;
 
   try {
     const parsed = await parseRssFeed(url);
     const podcast = extractPodcastInfo(parsed, url);
-    const episodes = extractEpisodes(parsed);
-
-    const total = episodes.length;
+    const { total, episodes } = extractEpisodesPage(parsed, start, PER_PAGE);
     const totalPages = total === 0 ? 1 : Math.ceil(total / PER_PAGE);
-    const start = (currentPage - 1) * PER_PAGE;
-    const paginated = episodes.slice(start, start + PER_PAGE);
+    const paginated = episodes;
 
     if (bypassCache || paginated.length === 0) {
       disableCache(res);
