@@ -85,15 +85,22 @@
 
 ## 使用 Docker 部署
 
-1. 构建镜像
+1. 拉取镜像（推荐）
    ```bash
-   docker build -t podrss-api .
+   docker pull jaksay/podcast-rss-api:latest
    ```
 2. 运行容器
    ```bash
-   docker run -d -p 3000:3000 -e API_KEY=你的密钥 --name podrss-api podrss-api
+   docker run -d -p 3000:3000 -e API_KEY=你的密钥 --name podrss-api jaksay/podcast-rss-api:latest
    ```
-3. 访问：
+3. 或本地构建
+   ```bash
+   docker build -t podrss-api .
+   ```
+   ```bash
+   docker run -d -p 3000:3000 -e API_KEY=你的密钥 --name podrss-api-local podrss-api
+   ```
+4. 访问：
    - 首页说明与入口：`http://localhost:3000/`
    - 测试工具：`http://localhost:3000/test.html`
 

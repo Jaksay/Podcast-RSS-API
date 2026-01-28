@@ -85,15 +85,22 @@ Access:
 
 ## Deploy with Docker
 
-1. Build image
+1. Pull image (recommended)
    ```bash
-   docker build -t podrss-api .
+   docker pull jaksay/podcast-rss-api:latest
    ```
 2. Run container
    ```bash
-   docker run -d -p 3000:3000 -e API_KEY=your_key --name podrss-api podrss-api
+   docker run -d -p 3000:3000 -e API_KEY=your_key --name podrss-api jaksay/podcast-rss-api:latest
    ```
-3. Access:
+3. Or build locally
+   ```bash
+   docker build -t podrss-api .
+   ```
+   ```bash
+   docker run -d -p 3000:3000 -e API_KEY=your_key --name podrss-api-local podrss-api
+   ```
+4. Access:
    - `http://localhost:3000/`
    - `http://localhost:3000/test.html`
 
