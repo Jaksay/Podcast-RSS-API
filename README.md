@@ -83,6 +83,20 @@ Access:
 - Home: `http://localhost:3000/`
 - Test page: `http://localhost:3000/test.html`
 
+## Deploy with Docker
+
+1. Build image
+   ```bash
+   docker build -t podrss-api .
+   ```
+2. Run container
+   ```bash
+   docker run -d -p 3000:3000 -e API_KEY=your_key --name podrss-api podrss-api
+   ```
+3. Access:
+   - `http://localhost:3000/`
+   - `http://localhost:3000/test.html`
+
 ## Deploy to Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Jaksay/Podcast-RSS-API&env=API_KEY)

@@ -83,6 +83,20 @@
 - 首页说明与入口：`http://localhost:3000/`
 - 测试工具：`http://localhost:3000/test.html`
 
+## 使用 Docker 部署
+
+1. 构建镜像
+   ```bash
+   docker build -t podrss-api .
+   ```
+2. 运行容器
+   ```bash
+   docker run -d -p 3000:3000 -e API_KEY=你的密钥 --name podrss-api podrss-api
+   ```
+3. 访问：
+   - 首页说明与入口：`http://localhost:3000/`
+   - 测试工具：`http://localhost:3000/test.html`
+
 ## 部署到 Vercel
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/Jaksay/Podcast-RSS-API&env=API_KEY)
