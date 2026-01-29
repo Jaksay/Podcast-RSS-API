@@ -131,7 +131,8 @@
     "rss": "https://example.com/feed.xml",
     "image": "https://example.com/cover.jpg",
     "website": "https://example.com",
-    "description": "&lt;p&gt;频道简介...&lt;/p&gt;"
+    "description_html": "&lt;p&gt;频道简介...&lt;/p&gt;",
+    "description_text": "频道简介..."
   },
   "pagination": {
     "cursor": 0,
@@ -141,16 +142,18 @@
   },
   "episodes": [
     {
+      "id": "episode_hash",
       "title": "第 1 集",
       "author": "主持人",
       "publishedAt": 1736856000000,
       "duration": "01:02:03",
       "audio": "https://cdn.example.com/audio.mp3",
       "image": "https://example.com/episode.jpg",
-      "description": "&lt;p&gt;完整 show notes&lt;/p&gt;",
-      "intro": "纯文本简介",
+      "description_html": "&lt;p&gt;完整 show notes&lt;/p&gt;",
+      "description_text": "纯文本简介",
       "url": "https://example.com/episode",
-      "link": "https://example.com/episode"
+      "link": "https://example.com/episode",
+      "guid": "episode_guid"
     }
   ]
 }</pre>

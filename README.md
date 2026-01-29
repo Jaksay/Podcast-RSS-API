@@ -12,7 +12,7 @@ A podcast RSS parsing service that provides channel overview and episode list AP
   - Parse podcast channel metadata
   - Cache for 48 hours (no cache if empty), `refresh=1` to bypass cache
   - Note: caching relies on `Cache-Control` headers and depends on your deployment cache layer
-- Response fields: `podcast` (`name`, `author`, `rss`, `image`, `website`, `description`)
+- Response fields: `podcast` (`name`, `author`, `rss`, `image`, `website`, `description_html`, `description_text`)
 - Example:
   ```json
   {
@@ -22,7 +22,8 @@ A podcast RSS parsing service that provides channel overview and episode list AP
       "rss": "https://example.com/feed.xml",
       "image": "https://example.com/cover.jpg",
       "website": "https://example.com",
-      "description": "<p>Channel description...</p>"
+      "description_html": "<p>Channel description...</p>",
+      "description_text": "Channel description..."
     }
   }
   ```
@@ -30,7 +31,7 @@ A podcast RSS parsing service that provides channel overview and episode list AP
   - Return channel info with cursor-based episode list
   - Cache for 36 hours (no cache if empty page)
   - Optional: `refresh=1` to bypass cache
-- Response fields: `podcast`, `pagination` (`cursor`, `limit`, `nextCursor`, `hasMore`), `episodes` (`title`, `author`, `publishedAt`, `duration`, `audio`, `image`, `description`, `intro`, `url`, `link`)
+- Response fields: `podcast`, `pagination` (`cursor`, `limit`, `nextCursor`, `hasMore`), `episodes` (`id`, `title`, `author`, `publishedAt`, `duration`, `audio`, `image`, `description_html`, `description_text`, `url`, `link`, `guid`)
 - Example:
   ```json
   {
@@ -40,7 +41,8 @@ A podcast RSS parsing service that provides channel overview and episode list AP
       "rss": "https://example.com/feed.xml",
       "image": "https://example.com/cover.jpg",
       "website": "https://example.com",
-      "description": "<p>Channel description...</p>"
+      "description_html": "<p>Channel description...</p>",
+      "description_text": "Channel description..."
     },
     "pagination": {
       "cursor": 0,
@@ -50,16 +52,18 @@ A podcast RSS parsing service that provides channel overview and episode list AP
     },
     "episodes": [
       {
+        "id": "episode_hash",
         "title": "Episode 1",
         "author": "Host",
         "publishedAt": 1736856000000,
         "duration": "01:02:03",
         "audio": "https://cdn.example.com/audio.mp3",
         "image": "https://example.com/episode.jpg",
-        "description": "<p>Full show notes</p>",
-        "intro": "Plain text summary",
+        "description_html": "<p>Full show notes</p>",
+        "description_text": "Plain text summary",
         "url": "https://example.com/episode",
-        "link": "https://example.com/episode"
+        "link": "https://example.com/episode",
+        "guid": "episode_guid"
       }
     ]
   }

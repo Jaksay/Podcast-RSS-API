@@ -12,7 +12,7 @@
   - 解析频道基础信息
   - 缓存 48 小时（无数据不缓存），`refresh=1` 跳过缓存
   - 说明：缓存通过 `Cache-Control` 响应头实现，是否生效取决于部署环境是否有缓存层
-- 返回字段：`podcast`（`name`、`author`、`rss`、`image`、`website`、`description`）
+- 返回字段：`podcast`（`name`、`author`、`rss`、`image`、`website`、`description_html`、`description_text`）
 - 示例响应：
   ```json
   {
@@ -22,7 +22,8 @@
       "rss": "https://example.com/feed.xml",
       "image": "https://example.com/cover.jpg",
       "website": "https://example.com",
-      "description": "<p>频道简介...</p>"
+      "description_html": "<p>频道简介...</p>",
+      "description_text": "频道简介..."
     }
   }
   ```
@@ -30,7 +31,7 @@
   - 返回频道信息与游标分页分集列表
   - 缓存 36 小时（当前页无数据不缓存）
   - 可选参数：`refresh=1` 强制刷新
-- 返回字段：`podcast`、`pagination`（`cursor`、`limit`、`nextCursor`、`hasMore`）、`episodes`（`title`、`author`、`publishedAt`、`duration`、`audio`、`image`、`description`、`intro`、`url`、`link`）
+- 返回字段：`podcast`、`pagination`（`cursor`、`limit`、`nextCursor`、`hasMore`）、`episodes`（`id`、`title`、`author`、`publishedAt`、`duration`、`audio`、`image`、`description_html`、`description_text`、`url`、`link`、`guid`）
 - 示例响应：
   ```json
   {
@@ -40,7 +41,8 @@
       "rss": "https://example.com/feed.xml",
       "image": "https://example.com/cover.jpg",
       "website": "https://example.com",
-      "description": "<p>频道简介...</p>"
+      "description_html": "<p>频道简介...</p>",
+      "description_text": "频道简介..."
     },
     "pagination": {
       "cursor": 0,
@@ -50,16 +52,18 @@
     },
     "episodes": [
       {
+        "id": "episode_hash",
         "title": "第 1 集",
         "author": "主持人",
         "publishedAt": 1736856000000,
         "duration": "01:02:03",
         "audio": "https://cdn.example.com/audio.mp3",
         "image": "https://example.com/episode.jpg",
-        "description": "<p>完整 show notes</p>",
-        "intro": "纯文本简介",
+        "description_html": "<p>完整 show notes</p>",
+        "description_text": "纯文本简介",
         "url": "https://example.com/episode",
-        "link": "https://example.com/episode"
+        "link": "https://example.com/episode",
+        "guid": "episode_guid"
       }
     ]
   }

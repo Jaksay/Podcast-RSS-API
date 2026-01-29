@@ -3,6 +3,7 @@ const https = require("https");
 const zlib = require("zlib");
 const dns = require("dns").promises;
 const net = require("net");
+const { createHash } = require("crypto");
 const { XMLParser } = require("fast-xml-parser");
 const sanitizeHtml = require("sanitize-html");
 const { decode } = require("he");
@@ -19,6 +20,8 @@ const EPISODES_CACHE_SECONDS = 60 * 60 * 36;
 const REQUEST_TIMEOUT_MS = 10000;
 const MAX_RSS_BYTES = 5 * 1024 * 1024;
 const DEBUG = process.env.DEBUG_RSS === "1";
+const BLOCKQUOTE_OPEN_TOKEN = "__BLOCKQUOTE_OPEN__";
+const BLOCKQUOTE_CLOSE_TOKEN = "__BLOCKQUOTE_CLOSE__";
 
 const logDebug = (...args) => {
   if (!DEBUG) return;
@@ -56,6 +59,36 @@ const parseTimestamp = (value) => {
     return null;
   }
   return timestamp;
+};
+
+const buildEpisodeId = (episode = {}) => {
+  const fallbackSource = `${episode.title || ""}-${episode.publishedAt || ""}-${episode.audio || ""}`;
+  const source =
+    episode.guid ||
+    episode.id ||
+    episode.uid ||
+    episode.audio ||
+    episode.url ||
+    episode.link ||
+    fallbackSource;
+  return createHash("sha256").update(String(source)).digest("hex");
+};
+
+const escapeHtml = (value = "") => {
+  const text = value == null ? "" : String(value);
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+};
+
+const addReadableSpacing = (value = "") => {
+  const text = value == null ? "" : String(value);
+  return text
+    .replace(/([\u4e00-\u9fa5])([A-Za-z0-9])/g, "$1 $2")
+    .replace(/([A-Za-z0-9])([\u4e00-\u9fa5])/g, "$1 $2");
 };
 
 const sanitizeOptions = {
@@ -138,6 +171,226 @@ const toText = (value) => {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+};
+
+const convertHtmlToPlainText = (value = "") => {
+  const text = value == null ? "" : String(value);
+  return text
+    .replace(/<strong[^>]*>/gi, "__STRONG_OPEN__")
+    .replace(/<\/strong>/gi, "__STRONG_CLOSE__")
+    .replace(/<b[^>]*>/gi, "__STRONG_OPEN__")
+    .replace(/<\/b>/gi, "__STRONG_CLOSE__")
+    .replace(/<em[^>]*>/gi, "__EM_OPEN__")
+    .replace(/<\/em>/gi, "__EM_CLOSE__")
+    .replace(/<i[^>]*>/gi, "__EM_OPEN__")
+    .replace(/<\/i>/gi, "__EM_CLOSE__")
+    .replace(/<blockquote[^>]*>/gi, `\n\n${BLOCKQUOTE_OPEN_TOKEN}\n\n`)
+    .replace(/<\/blockquote>/gi, `\n\n${BLOCKQUOTE_CLOSE_TOKEN}\n\n`)
+    .replace(/<\s*br\s*\/?\s*>/gi, "\n")
+    .replace(/<\/p>/gi, "\n\n")
+    .replace(/<\/div>/gi, "\n\n")
+    .replace(/<\s*(h[1-6]|section|article)[^>]*>/gi, "\n\n")
+    .replace(/<\/\s*(h[1-6]|section|article)>/gi, "\n\n")
+    .replace(/<li[^>]*>/gi, "• ")
+    .replace(/<\/li>/gi, "\n")
+    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[\s\S]*?>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
+
+const applyFormattingTokens = (input) => {
+  if (!input) {
+    return "";
+  }
+  const tokens = [
+    { open: "__STRONG_OPEN__", close: "__STRONG_CLOSE__", tag: "strong" },
+    { open: "__EM_OPEN__", close: "__EM_CLOSE__", tag: "em" },
+  ];
+
+  let output = input;
+
+  tokens.forEach(({ open, close, tag }) => {
+    let result = "";
+    let remaining = output;
+    let depth = 0;
+
+    while (remaining.length) {
+      const openIndex = remaining.indexOf(open);
+      const closeIndex = remaining.indexOf(close);
+
+      if (openIndex === -1 && closeIndex === -1) {
+        result += remaining;
+        break;
+      }
+
+      const useOpen = openIndex !== -1 && (closeIndex === -1 || openIndex < closeIndex);
+      const tokenIndex = useOpen ? openIndex : closeIndex;
+      const tokenLength = useOpen ? open.length : close.length;
+
+      result += remaining.slice(0, tokenIndex);
+      remaining = remaining.slice(tokenIndex + tokenLength);
+
+      if (useOpen) {
+        depth += 1;
+        result += `<${tag}>`;
+      } else if (depth > 0) {
+        depth -= 1;
+        result += `</${tag}>`;
+      }
+    }
+
+    while (depth > 0) {
+      result += `</${tag}>`;
+      depth -= 1;
+    }
+
+    output = result;
+  });
+
+  return output;
+};
+
+const highlightTimestampsInPlainText = (html) => {
+  return html.replace(/(^|[^0-9])(\d{1,2}:\d{2}(?::\d{2})?)(?![0-9:])/g, (match, prefix, time) => {
+    return `${prefix}<button class="timestamp" type="button" data-timestamp="${time}">${time}</button>`;
+  });
+};
+
+const highlightTimestampsInHtml = (html) => {
+  if (!html) {
+    return "";
+  }
+  const parts = String(html).split(/(<[^>]+>)/g);
+  const stack = [];
+  let timestampDepth = 0;
+  const isSelfClosing = (tag) => /\/\s*>$/.test(tag) || /^<\s*(br|hr)\b/i.test(tag);
+  const isTimestampTag = (tag) => {
+    return (
+      /\bclass\s*=\s*["'][^"']*\btimestamp\b[^"']*["']/i.test(tag) ||
+      /\bdata-timestamp\s*=/i.test(tag)
+    );
+  };
+
+  return parts
+    .map((segment) => {
+      if (!segment) {
+        return "";
+      }
+      if (segment.startsWith("<")) {
+        const closingMatch = segment.match(/^<\s*\/\s*([a-z0-9:-]+)/i);
+        if (closingMatch) {
+          const last = stack.pop();
+          if (last) {
+            timestampDepth = Math.max(0, timestampDepth - 1);
+          }
+          return segment;
+        }
+        if (isSelfClosing(segment)) {
+          return segment;
+        }
+        const isTimestamp = isTimestampTag(segment);
+        stack.push(isTimestamp);
+        if (isTimestamp) {
+          timestampDepth += 1;
+        }
+        return segment;
+      }
+
+      if (timestampDepth > 0) {
+        return segment;
+      }
+
+      return segment.replace(/(\d{1,2}:\d{2}(?::\d{2})?)/g, (match) => {
+        const trimmed = match.trim();
+        if (!trimmed) {
+          return match;
+        }
+        return `<button class="timestamp" type="button" data-timestamp="${trimmed}">${trimmed}</button>`;
+      });
+    })
+    .join("");
+};
+
+const buildHtmlFromPlainText = (text, escapeHtmlFn) => {
+  if (!text) {
+    return "";
+  }
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (!paragraphs.length) {
+    return "";
+  }
+
+  const wrapParagraph = (paragraph) => {
+    const safe = escapeHtmlFn(paragraph).replace(/\n/g, "<br />");
+    return `<p>${highlightTimestampsInPlainText(applyFormattingTokens(safe))}</p>`;
+  };
+
+  const htmlParagraphs = [];
+  let blockquoteBuffer = [];
+  let insideBlockquote = false;
+
+  const flushBlockquote = () => {
+    if (!blockquoteBuffer.length) {
+      insideBlockquote = false;
+      blockquoteBuffer = [];
+      return;
+    }
+    htmlParagraphs.push(`<blockquote>${blockquoteBuffer.join("")}</blockquote>`);
+    insideBlockquote = false;
+    blockquoteBuffer = [];
+  };
+
+  paragraphs.forEach((paragraph) => {
+    if (paragraph === BLOCKQUOTE_OPEN_TOKEN) {
+      if (insideBlockquote && blockquoteBuffer.length) {
+        flushBlockquote();
+      }
+      insideBlockquote = true;
+      return;
+    }
+    if (paragraph === BLOCKQUOTE_CLOSE_TOKEN) {
+      if (insideBlockquote) {
+        flushBlockquote();
+      }
+      return;
+    }
+    const wrapped = wrapParagraph(paragraph);
+    if (insideBlockquote) {
+      blockquoteBuffer.push(wrapped);
+    } else {
+      htmlParagraphs.push(wrapped);
+    }
+  });
+
+  if (insideBlockquote && blockquoteBuffer.length) {
+    flushBlockquote();
+  }
+
+  if (!htmlParagraphs.length) {
+    return "";
+  }
+  return `<div class="episode-detail-description">${htmlParagraphs.join("")}</div>`;
+};
+
+const buildEpisodeDescriptionHtml = (options = {}) => {
+  const { html, fallbackText, escapeHtml: escapeHtmlFn } = options;
+  const safeEscape = typeof escapeHtmlFn === "function" ? escapeHtmlFn : (value) => value;
+  const sanitizedHtml = html ? String(html).trim() : "";
+  if (sanitizedHtml) {
+    return `<div class="episode-detail-description">${highlightTimestampsInHtml(sanitizedHtml)}</div>`;
+  }
+
+  const safeFallback = fallbackText ? String(fallbackText).trim() : "";
+  if (!safeFallback) {
+    return "";
+  }
+  return buildHtmlFromPlainText(safeFallback, safeEscape);
 };
 
 const toRichHtml = (value) => {
@@ -416,13 +669,13 @@ const extractPodcastInfo = (rssData = {}, rssUrl) => {
     channel?.["itunes:link"] ||
     (Array.isArray(channel?.link) ? channel?.link?.[0] : "");
 
-  const description =
-    toRichHtml(
-      channel?.["itunes:summary"] ||
-        channel?.description ||
-        channel?.["itunes:subtitle"] ||
-        "",
-    ) || "";
+  const rawDescription =
+    channel?.["itunes:summary"] ||
+    channel?.description ||
+    channel?.["itunes:subtitle"] ||
+    "";
+  const descriptionHtml = toRichHtml(rawDescription) || "";
+  const descriptionText = toText(rawDescription) || "";
 
   return {
     name,
@@ -430,7 +683,8 @@ const extractPodcastInfo = (rssData = {}, rssUrl) => {
     rss: rssUrl,
     image,
     website,
-    description,
+    description_html: descriptionHtml,
+    description_text: descriptionText,
   };
 };
 
@@ -441,7 +695,8 @@ const hasPodcastInfo = (podcast) =>
         podcast.author ||
         podcast.image ||
         podcast.website ||
-        podcast.description),
+        podcast.description_html ||
+        podcast.description_text),
   );
 
 const extractEpisodesPage = (rssData = {}, start = 0, limit = PER_PAGE) => {
@@ -491,19 +746,49 @@ const extractEpisodesPage = (rssData = {}, start = 0, limit = PER_PAGE) => {
       toLink(item?.["feedburner:origLink"]) ||
       toLink(enclosure?.url) ||
       "";
-
-    const episodeIndex = start + index;
-    return {
-      title: item?.title || `Episode ${episodeIndex + 1}`,
-      author,
-      publishedAt: parseTimestamp(item?.pubDate || item?.["dc:date"] || ""),
-      duration: item?.["itunes:duration"] || item?.duration || "",
-      audio: enclosure?.["@_url"] || enclosure?.url || "",
-      image,
-      description: descriptionHtml,
-      intro: toText(rawDescription),
+    const fallbackDescriptionText = addReadableSpacing(convertHtmlToPlainText(rawDescription)).trim();
+    const descriptionWithTimestamps = buildEpisodeDescriptionHtml({
+      html: descriptionHtml,
+      fallbackText: fallbackDescriptionText,
+      escapeHtml,
+    });
+    const publishedAt = parseTimestamp(item?.pubDate || item?.["dc:date"] || "");
+    const title = item?.title || `Episode ${start + index + 1}`;
+    const rawGuid = item?.guid;
+    const rawId = item?.id;
+    const rawUid = item?.uid;
+    const guidValue = toLink(rawGuid) || (typeof rawGuid === "string" ? rawGuid.trim() : "");
+    const idValue = toLink(rawId) || (typeof rawId === "string" ? rawId.trim() : "");
+    const uidValue = toLink(rawUid) || (typeof rawUid === "string" ? rawUid.trim() : "");
+    const audioUrl = enclosure?.["@_url"] || enclosure?.url || "";
+    const idSource = {
+      guid: guidValue,
+      id: idValue,
+      uid: uidValue,
+      audio: audioUrl,
       url: episodeLink,
       link: episodeLink,
+      title,
+      publishedAt,
+    };
+    const episodePayload = {
+      title,
+      author,
+      publishedAt,
+      duration: item?.["itunes:duration"] || item?.duration || "",
+      audio: audioUrl,
+      image,
+      description_html: descriptionWithTimestamps,
+      description_text: toText(rawDescription),
+      url: episodeLink,
+      link: episodeLink,
+      guid: guidValue || idValue || uidValue || "",
+    };
+    const episodeId = buildEpisodeId(idSource);
+
+    return {
+      id: episodeId,
+      ...episodePayload,
     };
   });
 
